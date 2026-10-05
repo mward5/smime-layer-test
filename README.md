@@ -92,6 +92,39 @@ as "cannot verify sender". To see them as valid, trust `certs/ca.crt` for
 email, but only in a test profile, or remove it afterwards: its key is a
 throwaway sitting in `certs/`.
 
+## Signatures through mail gateways
+
+`gateway-check.py` takes saved messages (`.eml`, or an mbox holding one
+message) and checks whether their signatures would survive the rewrites a
+mail gateway makes. It applies each rewrite on its own and verifies every
+S/MIME layer again with `openssl`, and every OpenPGP layer with `gpg`, if
+installed. Certificate chains are not checked. Encrypted layers are not
+opened.
+
+```sh
+./gateway-check.py reply.eml
+```
+
+```
+reply.eml
+  as is      1 S/MIME: good
+  preamble   1 S/MIME: good
+  qp-tab     1 S/MIME: BAD   <-- BROKEN
+  trailing   (no change)
+  unfold     (no change)
+  from       (no change)
+  epilogue   1 S/MIME: BAD   <-- BROKEN
+```
+
+Mimecast was seen making `preamble` (it removes empty lines before a
+multipart's first boundary) and `qp-tab` (it re-encodes a quoted-printable
+part that holds a literal tab). The others are rewrites a gateway could
+plausibly make. No gateway has been seen making them. Opaque-signed and
+triple-wrapped messages survive all of them.
+
+The two rewrites Mimecast makes are fixed on the Evolution side by
+[camel-signed-transit-robust](https://gitlab.gnome.org/mward5/evolution-data-server/-/commits/camel-signed-transit-robust).
+
 ## Licence
 
 MIT. See `LICENSE`.
